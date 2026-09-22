@@ -5,3 +5,10 @@ __pycache__/
 coverage/
 *.pyc
 .DS_Store
+
+# Salesforce CLI local state and caches
+.sf/
+.sfdx/
+
+# Temporary JWT key used by local deployment scripts
+server.key
