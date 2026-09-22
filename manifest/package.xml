@@ -2,11 +2,10 @@
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
         <members>Test__c</members>
-        <members>Activity</members>
         <name>CustomObject</name>
     </types>
     <types>
-        <members>Test_active__c</members>
+        <members>Activity.Test_active__c</members>
         <name>CustomField</name>
     </types>
     <version>60.0</version>
