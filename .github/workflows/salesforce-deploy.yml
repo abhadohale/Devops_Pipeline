@@ -1,0 +1,102 @@
+name: Salesforce Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      deploy_mode:
+        description: 'Choose validation or deployment'
+        required: true
+        default: 'validate'
+        type: choice
+        options:
+          - validate
+          - deploy
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_CONSUMER_KEY: ${{ secrets.SF_CONSUMER_KEY }}
+      SF_PRIVATE_KEY: ${{ secrets.SF_PRIVATE_KEY }}
+      SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Salesforce CLI
+        uses: salesforcecli/github-action@v2
+
+      - name: Validate Salesforce metadata
+        if: env.SF_USERNAME != '' && env.SF_CONSUMER_KEY != '' && env.SF_PRIVATE_KEY != ''
+        run: |
+          echo "${SF_PRIVATE_KEY}" > server.key
+          chmod 600 server.key
+          sf org login jwt \
+            --username "${SF_USERNAME}" \
+            --client-id "${SF_CONSUMER_KEY}" \
+            --jwt-key-file server.key \
+            --instance-url "${cd:-https://login.salesforce.com}"
+          sf project deploy validate \
+            --manifest manifest/package.xml \
+            --target-org "${SF_USERNAME}" \
+            --wait 10
+
+      - name: Skip validation when secrets are unavailable
+        if: env.SF_USERNAME == '' || env.SF_CONSUMER_KEY == '' || env.SF_PRIVATE_KEY == ''
+        run: |
+          echo "Salesforce credentials are not configured. Validation step skipped."
+          echo "Add SF_USERNAME, SF_CONSUMER_KEY, SF_PRIVATE_KEY, and optionally SF_LOGIN_URL in GitHub secrets."
+
+  deploy:
+    needs: validate
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_mode == 'deploy')
+    runs-on: ubuntu-latest
+    env:
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_CONSUMER_KEY: ${{ secrets.SF_CONSUMER_KEY }}
+      SF_PRIVATE_KEY: ${{ secrets.SF_PRIVATE_KEY }}
+      SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Salesforce CLI
+        uses: salesforcecli/github-action@v2
+
+      - name: Authenticate with Salesforce JWT
+        if: env.SF_USERNAME != '' && env.SF_CONSUMER_KEY != '' && env.SF_PRIVATE_KEY != ''
+        run: |
+          echo "${SF_PRIVATE_KEY}" > server.key
+          chmod 600 server.key
+          sf org login jwt \
+            --username "${SF_USERNAME}" \
+            --client-id "${SF_CONSUMER_KEY}" \
+            --jwt-key-file server.key \
+            --instance-url "${SF_LOGIN_URL:-https://login.salesforce.com}"
+
+      - name: Deploy to Salesforce
+        if: env.SF_USERNAME != '' && env.SF_CONSUMER_KEY != '' && env.SF_PRIVATE_KEY != ''
+        run: |
+          sf project deploy start \
+            --manifest manifest/package.xml \
+            --target-org "${SF_USERNAME}" \
+            --wait 30
+
+      - name: Fail if credentials are missing
+        if: env.SF_USERNAME == '' || env.SF_CONSUMER_KEY == '' || env.SF_PRIVATE_KEY == ''
+        run: |
+          echo "Missing Salesforce credentials. Add SF_USERNAME, SF_CONSUMER_KEY, and SF_PRIVATE_KEY to GitHub secrets."
+          exit 1
