@@ -9,4 +9,5 @@
         <members>Test_active__c</members>
         <name>CustomField</name>
     <version>60.0</version>
+    <types>
 </Package>
