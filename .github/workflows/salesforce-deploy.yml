@@ -33,8 +33,16 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install Salesforce CLI
-        uses: salesforcecli/github-action@v2
+        run: npm install --global @salesforce/cli
+
+      - name: Verify Salesforce CLI
+        run: sf --version
 
       - name: Validate Salesforce metadata
         if: env.SF_USERNAME != '' && env.SF_CONSUMER_KEY != '' && env.SF_PRIVATE_KEY != ''
@@ -45,7 +53,7 @@ jobs:
             --username "${SF_USERNAME}" \
             --client-id "${SF_CONSUMER_KEY}" \
             --jwt-key-file server.key \
-            --instance-url "${cd:-https://login.salesforce.com}"
+            --instance-url "${SF_LOGIN_URL:-https://login.salesforce.com}"
           sf project deploy validate \
             --manifest manifest/package.xml \
             --target-org "${SF_USERNAME}" \
@@ -73,8 +81,16 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install Salesforce CLI
-        uses: salesforcecli/github-action@v2
+        run: npm install --global @salesforce/cli
+
+      - name: Verify Salesforce CLI
+        run: sf --version
 
       - name: Authenticate with Salesforce JWT
         if: env.SF_USERNAME != '' && env.SF_CONSUMER_KEY != '' && env.SF_PRIVATE_KEY != ''
